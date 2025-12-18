@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "585519584298",
+    "project_id": "quickgriev",
+    "storage_bucket": "quickgriev.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:585519584298:android:17ce2d60a9ceb2222e1f53",
+        "android_client_info": {
+          "package_name": "com.example.quick_griev"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDaryTng2HztORKoDnzEd_s_SHq2lTi2M8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
