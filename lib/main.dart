@@ -1,30 +1,42 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_web_plugins/flutter_web_plugins.dart';
+
 import 'package:quick_griev/screens/home.dart';
-import 'package:quick_griev/services/api_service.dart';
 import 'package:quick_griev/screens/admin_dashboard.dart';
+import 'package:quick_griev/services/api_service.dart';
 
 void main() {
-  runApp(
-    MaterialApp(
+  // 🔑 REQUIRED FOR FLUTTER WEB URL ROUTING
+  setUrlStrategy(PathUrlStrategy());
+
+  runApp(const MyApp());
+}
+
+// ---------------- APP ROOT ----------------
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
       debugShowCheckedModeBanner: false,
 
-      // Initial route for web
       initialRoute: '/',
 
-      // URL based routing
       routes: {
-        '/': (context) => AuthScreen(),          // User flow
-        '/admin': (context) => AdminDashboard(), // Admin dashboard
+        '/': (context) => AuthScreen(),          // User Login/Register
+        '/admin': (context) => AdminDashboard(), // Admin Dashboard
       },
-    ),
-  );
+    );
+  }
 }
 
 // ---------------- AUTH SCREEN ----------------
 
 class AuthScreen extends StatefulWidget {
   @override
-  _AuthScreenState createState() => _AuthScreenState();
+  State<AuthScreen> createState() => _AuthScreenState();
 }
 
 class _AuthScreenState extends State<AuthScreen> {
@@ -124,13 +136,14 @@ class _AuthScreenState extends State<AuthScreen> {
       child: TextField(
         controller: c,
         obscureText: pass,
-        decoration: InputDecoration(
-          labelText: label,
+        decoration: const InputDecoration(
           border: OutlineInputBorder(),
-        ),
+        ).copyWith(labelText: label),
       ),
     );
   }
+
+  // ---------------- API LOGIC ----------------
 
   void _register() async {
     final res = await ApiService.register(
@@ -187,10 +200,14 @@ class OTPVerificationScreen extends StatefulWidget {
   final String mode;
   final String userId;
 
-  OTPVerificationScreen({required this.mode, required this.userId});
+  const OTPVerificationScreen({
+    super.key,
+    required this.mode,
+    required this.userId,
+  });
 
   @override
-  _OTPVerificationScreenState createState() => _OTPVerificationScreenState();
+  State<OTPVerificationScreen> createState() => _OTPVerificationScreenState();
 }
 
 class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
@@ -219,12 +236,11 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
             },
           ),
         ),
-        (route) => false,
+        (_) => false,
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(res["message"] ?? "Failed")),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(res["message"] ?? "Failed")));
     }
   }
 

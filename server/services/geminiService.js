@@ -12,8 +12,8 @@ PRIORITY RULES:
 DEPARTMENT RULES:
 - Police: crime, theft, violence
 - Health: hospital, injury, ambulance
-- Electricity: power, transformer
-- Water: water supply, pipeline
+- Electricity: power, transformer,electric post,electric shock,accident
+- Water: water supply, pipeline,leakage
 - Transport: road, traffic, accident
 - Municipality: garbage, cleanliness
 

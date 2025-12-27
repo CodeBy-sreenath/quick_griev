@@ -4,6 +4,8 @@ import cors from 'cors'
 import connectDB from './config/db.js'
 import userRouter from './routes/userRoute.js'
 import complaintRouter from './routes/complaintRoute.js'
+import adminRouter from './routes/adminAuthRoute.js'
+import statusrouter from './routes/statusRoute.js'
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -67,6 +69,10 @@ app.get('/', (req, res) => {
 
 app.use("/api/users", userRouter)
 app.use("/api/complaint",complaintRouter)
+app.use("/api/admin",adminRouter)
+app.use("/api/status",statusrouter)
+app.use("/uploads", express.static("uploads"));
+
 
 // Error handling middleware
 app.use((err, req, res, next) => {
