@@ -12,10 +12,10 @@ PRIORITY RULES:
 DEPARTMENT RULES:
 - Police: crime, theft, violence
 - Health: hospital, injury, ambulance
-- Electricity: power, transformer,electric post,electric shock,accident
+- Electricity: power, transformer,electric post,electric shock,accident,power cut
 - Water: water supply, pipeline,leakage
 - Transport: road, traffic, accident
-- Municipality: garbage, cleanliness
+- Municipality: garbage, cleanliness,waste    
 
 Complaint:
 "${complaintText}"
