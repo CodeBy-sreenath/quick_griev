@@ -1,76 +1,110 @@
-// server/services/geminiService.js
+// server/services/groqService.js
+
+import Groq from "groq-sdk";
+
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY,
+});
 
 export const analyzeComplaint = async (complaintText) => {
+
   const prompt = `
 You are an AI system for government complaint prioritization.
 
+The complaint may be in English or Malayalam.
+
 PRIORITY RULES:
-- HIGH: accident, injured, death, fire, emergency, hospital, ambulance
-- MEDIUM: electricity issue, water problem, road damage, traffic jam
-- LOW: garbage, cleanliness, noise, stray animals
+
+HIGH:
+English keywords: accident, injured, death, fire, emergency, hospital, ambulance
+Malayalam keywords: അപകടം, പരിക്ക്, മരണം, തീപിടിത്തം, അടിയന്തര, ആശുപത്രി, ആംബുലൻസ്
+
+MEDIUM:
+English keywords: electricity issue, water problem, road damage, traffic jam
+Malayalam keywords: വൈദ്യുതി, വെള്ളം, റോഡ് കേടായി, ഗതാഗതക്കുരുക്ക്
+
+LOW:
+English keywords: garbage, cleanliness, noise, stray animals
+Malayalam keywords: മാലിന്യം, ശുചിത്വം, ശബ്ദം, തെരുവ് നായ
 
 DEPARTMENT RULES:
-- Police: crime, theft, violence
-- Health: hospital, injury, ambulance
-- Electricity: power, transformer,electric post,electric shock,accident,power cut
-- Water: water supply, pipeline,leakage
-- Transport: road, traffic, accident
-- Municipality: garbage, cleanliness,waste    
+
+Police:
+English: crime, theft, violence
+Malayalam: കുറ്റകൃത്യം, മോഷണം, ആക്രമണം, പോലീസ്
+
+Health:
+English: hospital, injury, ambulance
+Malayalam: ആശുപത്രി, പരിക്ക്, ആംബുലൻസ്
+
+Electricity:
+English: power, transformer, electric post, electric shock, power cut
+Malayalam: വൈദ്യുതി, ട്രാൻസ്ഫോർമർ, ഇലക്ട്രിക് പോസ്റ്റ്, കറന്റ് ഷോക്ക്
+
+Water:
+English: water supply, pipeline, leakage
+Malayalam: വെള്ളം, പൈപ്പ്, ചോർച്ച
+
+Transport:
+English: road, traffic, accident
+Malayalam: റോഡ്, ഗതാഗതം, അപകടം
+
+Municipality:
+English: garbage, cleanliness, waste
+Malayalam: മാലിന്യം, ശുചിത്വം, മാലിന്യ ശേഖരണം
 
 Complaint:
 "${complaintText}"
 
 Respond ONLY in JSON:
 {"priority":"high","department":"Transport"}
-  `;
+`;
 
   try {
-    // ✅ Use the correct v1beta endpoint and supported model
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": process.env.GEMINI_API_KEY
+    const response = await groq.chat.completions.create({
+      model: "llama3-70b-8192",
+      messages: [
+        {
+          role: "user",
+          content: prompt,
         },
-        body: JSON.stringify({
-          contents: [
-            {
-              role: "user",
-              parts: [{ text: prompt }]
-            }
-          ]
-        })
-      }
-    );
+      ],
+      temperature: 0, // deterministic output
+    });
 
-    const data = await response.json();
-
-    // ✅ Check for valid response
-    if (!data.candidates?.length || !data.candidates[0]?.content?.parts?.[0]?.text) {
-      console.error("Invalid Gemini response:", data);
-      return fallbackAnalysis(complaintText, true); // AI failed
+    if (
+      !response.choices?.length ||
+      !response.choices[0]?.message?.content
+    ) {
+      console.error("Invalid Groq response:", response);
+      return fallbackAnalysis(complaintText, true);
     }
 
-    // ✅ Extract and parse JSON output from AI
-    const text = data.candidates[0].content.parts[0].text
+    const text = response.choices[0].message.content
       .replace(/```json|```/g, "")
       .trim();
 
-    const result = JSON.parse(text);
+    let result;
+
+    try {
+      result = JSON.parse(text);
+    } catch (parseError) {
+      console.error("JSON Parse Error:", parseError.message);
+      return fallbackAnalysis(complaintText, true);
+    }
 
     return {
-      priority: result.priority.toLowerCase(),
-      department: result.department,
+      priority: result.priority?.toLowerCase() || "low",
+      department: result.department || "Municipality",
       message: "✅ AI analyzed successfully"
     };
 
   } catch (err) {
-    console.error("Gemini error:", err.message);
-    return fallbackAnalysis(complaintText, true); // AI failed
+    console.error("Groq error:", err.message);
+    return fallbackAnalysis(complaintText, true);
   }
 };
+
 
 // 🔁 FALLBACK NLP (ALWAYS SAFE)
 const fallbackAnalysis = (text, aiFailed = false) => {
@@ -79,18 +113,57 @@ const fallbackAnalysis = (text, aiFailed = false) => {
   let priority = "low";
   let department = "Municipality";
 
-  if (text.includes("accident") || text.includes("injured") || text.includes("emergency")) {
+  if (
+    text.includes("accident") ||
+    text.includes("injured") ||
+    text.includes("emergency") ||
+    text.includes("അപകടം") ||
+    text.includes("പരിക്ക്") ||
+    text.includes("അടിയന്തര")
+  ) {
     priority = "high";
     department = "Transport";
-  } else if (text.includes("electricity") || text.includes("water") || text.includes("traffic")) {
+  } 
+  else if (
+    text.includes("electricity") ||
+    text.includes("water") ||
+    text.includes("traffic") ||
+    text.includes("വൈദ്യുതി") ||
+    text.includes("വെള്ളം") ||
+    text.includes("ഗതാഗതം")
+  ) {
     priority = "medium";
-    if (text.includes("electricity")) department = "Electricity";
-    else if (text.includes("water")) department = "Water";
-    else if (text.includes("traffic") || text.includes("road")) department = "Transport";
-  } else if (text.includes("crime") || text.includes("theft") || text.includes("violence")) {
+
+    if (text.includes("electricity") || text.includes("വൈദ്യുതി"))
+      department = "Electricity";
+    else if (text.includes("water") || text.includes("വെള്ളം"))
+      department = "Water";
+    else if (
+      text.includes("traffic") ||
+      text.includes("road") ||
+      text.includes("ഗതാഗതം") ||
+      text.includes("റോഡ്")
+    )
+      department = "Transport";
+  } 
+  else if (
+    text.includes("crime") ||
+    text.includes("theft") ||
+    text.includes("violence") ||
+    text.includes("കുറ്റകൃത്യം") ||
+    text.includes("മോഷണം") ||
+    text.includes("ആക്രമണം")
+  ) {
     priority = "high";
     department = "Police";
-  } else if (text.includes("hospital") || text.includes("injury") || text.includes("ambulance")) {
+  } 
+  else if (
+    text.includes("hospital") ||
+    text.includes("injury") ||
+    text.includes("ambulance") ||
+    text.includes("ആശുപത്രി") ||
+    text.includes("ആംബുലൻസ്")
+  ) {
     priority = "high";
     department = "Health";
   }
