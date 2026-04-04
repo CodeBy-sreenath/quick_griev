@@ -1,132 +1,121 @@
 import Complaint from "../model/complaint.js";
 import Status from "../model/status.js";
-import { analyzeComplaint } from "../services/geminiService.js";
+import { analyzeComplaint } from "../services/groqService.js";
 
-// ✅ VALIDATION FUNCTION - Checks if complaint is meaningful
+// ✅ VALIDATION FUNCTION - Lightweight pre-filter before hitting AI
 const isValidComplaint = (text) => {
-  // Remove extra spaces and convert to lowercase
   const cleanText = text.trim().toLowerCase();
-  
-  
   const hasMalayalam = /[\u0D00-\u0D7F]/.test(cleanText);
-  
-  // 1. Check minimum length (at least 10 characters)
+
   if (cleanText.length < 10) {
     return { valid: false, reason: "Complaint is too short. Please provide more details." };
   }
-  
-  // 2. Check if text has at least 3 words
+
   const words = cleanText.split(/\s+/).filter(word => word.length > 0);
   if (words.length < 3) {
     return { valid: false, reason: "Complaint must contain at least 3 words." };
   }
-  
-  // 3. Check for gibberish (repeated characters like "aaaa", "bbbb")
-  const repeatedPattern = /(.)\1{4,}/; 
+
+  const repeatedPattern = /(.)\1{4,}/;
   if (repeatedPattern.test(cleanText)) {
     return { valid: false, reason: "Invalid complaint text detected. Please write a meaningful complaint." };
   }
-  
-  // 4. Check if text contains mostly non-alphabetic characters
-  const alphabeticChars = cleanText.match(/[a-zA-Z\u0D00-\u0D7F]/g) || []; // Include Malayalam unicode
+
+  const alphabeticChars = cleanText.match(/[a-zA-Z\u0D00-\u0D7F]/g) || [];
   const totalChars = cleanText.replace(/\s/g, '').length;
   if (alphabeticChars.length < totalChars * 0.5) {
     return { valid: false, reason: "Complaint must contain meaningful text." };
   }
-  
-  // 5. Check for random keyboard mashing - SKIP FOR MALAYALAM
+
   if (!hasMalayalam) {
-    const hasVowels = /[aeiouAEIOU]/; // English vowels only
+    const hasVowels = /[aeiouAEIOU]/;
     const wordChunks = cleanText.split(/\s+/);
     let meaningfulWords = 0;
-    
     for (const word of wordChunks) {
-      if (word.length >= 2 && hasVowels.test(word)) {
-        meaningfulWords++;
-      }
+      if (word.length >= 2 && hasVowels.test(word)) meaningfulWords++;
     }
-    
     if (meaningfulWords < Math.ceil(words.length * 0.5)) {
       return { valid: false, reason: "Complaint does not appear to be meaningful. Please describe your issue clearly." };
     }
   }
-  
-  // 6. Check for repetitive words (e.g., "the the the", "hello hello")
+
   const wordArray = cleanText.split(/\s+/);
   const wordCount = {};
-  
-  // Count word occurrences
   for (const word of wordArray) {
-    if (word.length > 1) { // Only count words longer than 1 character
-      wordCount[word] = (wordCount[word] || 0) + 1;
-    }
+    if (word.length > 1) wordCount[word] = (wordCount[word] || 0) + 1;
   }
-  
-  // Check if any word appears more than 40% of total words
+
   const totalWords = wordArray.length;
-  for (const [word, count] of Object.entries(wordCount)) {
-    const percentage = count / totalWords;
-    if (percentage > 0.4 && totalWords >= 3) {
+  for (const [, count] of Object.entries(wordCount)) {
+    if (count / totalWords > 0.4 && totalWords >= 3) {
       return { valid: false, reason: "Complaint contains too many repeated words. Please write a clear description." };
     }
   }
-  
-  // Check for immediate word repetition (e.g., "the the", "hello hello hello")
+
   for (let i = 0; i < wordArray.length - 1; i++) {
     if (wordArray[i].length > 1 && wordArray[i] === wordArray[i + 1]) {
-      // Check if same word repeats 2+ times consecutively
       let repeatCount = 1;
-      for (let j = i + 1; j < wordArray.length && wordArray[i] === wordArray[j]; j++) {
-        repeatCount++;
-      }
+      for (let j = i + 1; j < wordArray.length && wordArray[i] === wordArray[j]; j++) repeatCount++;
       if (repeatCount >= 2) {
         return { valid: false, reason: "Complaint contains repeated words. Please provide a proper description." };
       }
     }
   }
-  
-  // 7. Check for common spam patterns
+
   const spamPatterns = [
     /^test$/i,
     /^testing$/i,
-    /^(.)(\1)+$/,  // Single repeated character
-    /^(..)\1+$/,   // Two characters repeated
+    /^(.)(\1)+$/,
+    /^(..)\1+$/,
   ];
-  
   for (const pattern of spamPatterns) {
     if (pattern.test(cleanText)) {
       return { valid: false, reason: "Invalid complaint format. Please provide a real complaint." };
     }
   }
-  
+
   return { valid: true };
+};
+
+// ✅ CHECK 5 COMPLAINTS PER USER PER DAY
+const checkDailyLimit = async (userId) => {
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+
+  const endOfDay = new Date();
+  endOfDay.setHours(23, 59, 59, 999);
+
+  const todayCount = await Complaint.countDocuments({
+    userId,
+    createdAt: { $gte: startOfDay, $lte: endOfDay },
+  });
+
+  return todayCount;
 };
 
 export const createComplaint = async (req, res) => {
   try {
-    const {
-      userId,
-      complaintText,
-      language,
-      voiceText,
-      location,
-    } = req.body;
-    
+    const { userId, complaintText, language, voiceText, location } = req.body;
+
     let imageUrl = null;
-    if (req.file) {
-      imageUrl = `/uploads/${req.file.filename}`;
-    }
-    
-    // ✅ VALIDATE COMPLAINT TEXT FIRST
+    if (req.file) imageUrl = `/uploads/${req.file.filename}`;
+
+    // ✅ STEP 1: Rule-based pre-filter (no AI cost)
     const validation = isValidComplaint(complaintText);
     if (!validation.valid) {
-      return res.status(400).json({
+      return res.status(400).json({ success: false, message: validation.reason });
+    }
+
+    // ✅ STEP 2: Check daily complaint limit (5 per day)
+    const todayCount = await checkDailyLimit(userId);
+    if (todayCount >= 5) {
+      return res.status(429).json({
         success: false,
-        message: validation.reason,
+        message: "You have reached the daily limit of 5 complaints. Please try again tomorrow.",
       });
     }
 
-    // ✅ 1. SAVE complaint FIRST with SAFE defaults
+    // ✅ STEP 3: Save complaint with safe defaults first
     const complaint = await Complaint.create({
       userId,
       complaintText,
@@ -134,25 +123,31 @@ export const createComplaint = async (req, res) => {
       imageUrl,
       voiceText,
       location,
-      department: "Municipality", // ✅ REQUIRED DEFAULT
-      priority: "low",            // ✅ REQUIRED DEFAULT
+      department: "Municipality",
+      priority: "low",
     });
 
-    // ✅ 2. AI analysis (NON-BLOCKING LOGIC)
+    // ✅ STEP 4: AI analysis — fake detection + classification
     try {
       const aiResult = await analyzeComplaint(complaintText);
 
-      if (aiResult?.department) {
-        complaint.department = aiResult.department;
-      }
-      if (aiResult?.priority) {
-        complaint.priority = aiResult.priority;
+      // 🚫 AI says it's fake — delete and reject
+      if (aiResult?.isFake === true) {
+        await Complaint.findByIdAndDelete(complaint._id);
+        return res.status(400).json({
+          success: false,
+          message: aiResult.fakeReason || "Your complaint does not appear to be a real civic issue. Please describe a genuine problem.",
+        });
       }
 
+      // ✅ Real complaint — update with AI classification
+      if (aiResult?.department) complaint.department = aiResult.department;
+      if (aiResult?.priority) complaint.priority = aiResult.priority;
       await complaint.save();
+
     } catch (aiError) {
       console.error("AI failed, saved with defaults:", aiError.message);
-      // ❗ DO NOT FAIL REQUEST
+      // ❗ AI failure never blocks the user — complaint kept with defaults
     }
 
     res.status(201).json({
@@ -163,24 +158,15 @@ export const createComplaint = async (req, res) => {
 
   } catch (error) {
     console.error(error);
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
 export const getUserComplaints = async (req, res) => {
   try {
     const { userId } = req.params;
-
-    const complaints = await Complaint.find({ userId })
-      .sort({ createdAt: -1 });
-
-    res.json({
-      success: true,
-      complaints,
-    });
+    const complaints = await Complaint.find({ userId }).sort({ createdAt: -1 });
+    res.json({ success: true, complaints });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -191,9 +177,7 @@ export const getDepartmentComplaints = async (req, res) => {
     const { department } = req.params;
 
     const complaints = await Complaint.aggregate([
-      {
-        $match: { department },
-      },
+      { $match: { department } },
       {
         $addFields: {
           priorityOrder: {
@@ -208,24 +192,12 @@ export const getDepartmentComplaints = async (req, res) => {
           },
         },
       },
-      {
-        $sort: {
-          priorityOrder: 1,   // 🔥 HIGH → MEDIUM → LOW
-          createdAt: -1,      // newest first within same priority
-        },
-      },
+      { $sort: { priorityOrder: 1, createdAt: -1 } },
     ]);
 
-    res.json({
-      success: true,
-      complaints,
-    });
-
+    res.json({ success: true, complaints });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -233,16 +205,8 @@ export const getComplaintUpdates = async (req, res) => {
   try {
     const { complaintId } = req.params;
     const updates = await Status.find({ complaintId }).sort({ createdAt: 1 });
-    
-    res.status(200).json({
-      success: true,
-      updates,
-    });
-
+    res.status(200).json({ success: true, updates });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch updates",
-    });
+    res.status(500).json({ success: false, message: "Failed to fetch updates" });
   }
 };
