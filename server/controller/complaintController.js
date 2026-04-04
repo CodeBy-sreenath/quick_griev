@@ -1,6 +1,6 @@
 import Complaint from "../model/complaint.js";
 import Status from "../model/status.js";
-import { analyzeComplaint } from "../services/groqService.js";
+import { analyzeComplaint } from "../services/geminiService.js";
 
 // ✅ VALIDATION FUNCTION - Lightweight pre-filter before hitting AI
 const isValidComplaint = (text) => {
