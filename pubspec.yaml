@@ -1,5 +1,5 @@
 name: quick_griev
-description: "A new Flutter project."
+description: "AI-powered grievance redressal system."
 publish_to: 'none'
 
 version: 1.0.0+1
@@ -12,18 +12,25 @@ dependencies:
     sdk: flutter
 
   cupertino_icons: ^1.0.8
-  firebase_core: ^4.2.1
-  firebase_auth: ^6.1.2
   http: ^1.6.0
-  
-  # Add these new packages below
   file_picker: ^8.0.0
   speech_to_text: ^7.0.0
+  url_launcher: ^6.2.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.13.1   # 👈 ADD THIS
 
 flutter:
   uses-material-design: true
+
+# 👇 OUTSIDE flutter section
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/app_icon.png"
+  min_sdk_android: 21
+  web:
+    generate: false

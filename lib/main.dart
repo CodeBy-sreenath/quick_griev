@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_web_plugins/flutter_web_plugins.dart';
+//import 'package:flutter_web_plugins/flutter_web_plugins.dart'; for website running
 
 import 'package:quick_griev/screens/home.dart';
 import 'package:quick_griev/screens/admin_dashboard.dart';
@@ -7,7 +7,7 @@ import 'package:quick_griev/services/api_service.dart';
 
 void main() {
   // 🔑 REQUIRED FOR FLUTTER WEB URL ROUTING
-  setUrlStrategy(PathUrlStrategy());
+  //setUrlStrategy(PathUrlStrategy()); for website running
 
   runApp(const MyApp());
 }

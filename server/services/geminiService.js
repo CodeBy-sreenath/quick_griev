@@ -39,11 +39,11 @@ Malayalam: ആശുപത്രി, പരിക്ക്, ആംബുലൻ�
 
 Electricity:
 English: power, transformer, electric post, electric shock, power cut
-Malayalam: വൈദ്യുതി, ട്രാൻസ്ഫോർമർ, ഇലക്ട്രിക് പോസ്റ്റ്, കറന്റ് ഷോക്ക്
+Malayalam: വൈദ്യുതി, ട്രാൻസ്ഫോർമർ, ഇലക്ട്രിക് പോസ്റ്റ്, കറന്റ് ഷോക്ക്,തെരുവ് ലൈറ്റ്
 
 Water:
 English: water supply, pipeline, leakage
-Malayalam: വെള്ളം, പൈപ്പ്, ചോർച്ച
+Malayalam: വെള്ളം, പൈപ്പ്, ചോർച്ച,വെള്ളം, വെള്ളവിതരണം, ജലവിതരണം, പൈപ്പ്, ചോർച്ച, വെള്ളക്കുറവ്
 
 Transport:
 English: road, traffic, accident
@@ -134,9 +134,14 @@ const fallbackAnalysis = (text, aiFailed = false) => {
   ) {
     priority = "medium";
 
-    if (text.includes("electricity") || text.includes("വൈദ്യുതി"))
+    if (text.includes("electricity") || text.includes("വൈദ്യുതി")|| text.includes("തെരുവ് ലൈറ്റ്"))
+      
       department = "Electricity";
-    else if (text.includes("water") || text.includes("വെള്ളം"))
+    else if (text.includes("water") || text.includes("വെള്ളം")||
+    text.includes("ജലവിതരണം")||
+    text.includes(" പൈപ്പ്")||
+    text.includes("വെള്ളക്കുറവ്")||
+    text.includes("ചോർച്ച"))
       department = "Water";
     else if (
       text.includes("traffic") ||

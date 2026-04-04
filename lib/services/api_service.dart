@@ -7,7 +7,11 @@ class ApiService {
   // For Android Emulator: use "http://10.0.2.2:3000"
   // For iOS Simulator: use "http://localhost:3000"
   // For Physical device: use your computer's IP address "http://192.168.x.x:3000"
-  static const String baseUrl = "http://localhost:3000/api/users";
+  //static const String baseUrl = "http://localhost:3000/api/users"; it isfor web
+  //static const String baseUrl = "http://192.168.225.243:3000/api/users";
+  //static const String baseUrl = "http://10.25.152.243:3000/api/users";
+  //static const String baseUrl = "http://192.168.225.243:3000/api/users";
+  static const String baseUrl = "https://quick-griev.onrender.com/api/users";
 
   // ---------------- REGISTER ----------------
   static Future<Map<String, dynamic>> register({

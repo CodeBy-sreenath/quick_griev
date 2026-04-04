@@ -83,9 +83,15 @@ app.use((err, req, res, next) => {
 // Connect to database and start server
 connectDB()
   .then(() => {
-    app.listen(PORT, () => {
-      console.log(`✅ Server is running on http://localhost:${PORT}`)
-      console.log(`✅ CORS enabled for all origins`)
+    //app.listen(PORT, () => {
+      //console.log(`✅ Server is running on http://localhost:${PORT}`)
+      //console.log(`✅ CORS enabled for all origins`)
+   // })
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`✅ Server is running on:`)
+      console.log(`   http://localhost:${PORT}`)
+      console.log(`   http://YOUR_PC_IP:${PORT}  (For Mobile)`)
+      console.log(`✅ Ready for Flutter mobile connection`)
     })
   })
   .catch((error) => {
