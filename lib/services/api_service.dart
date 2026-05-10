@@ -11,7 +11,8 @@ class ApiService {
   //static const String baseUrl = "http://192.168.225.243:3000/api/users";
   //static const String baseUrl = "http://10.25.152.243:3000/api/users";
   //static const String baseUrl = "http://192.168.225.243:3000/api/users";
-  static const String baseUrl = "https://quick-griev.onrender.com/api/users";
+  //static const String baseUrl = "https://quick-griev.onrender.com/api/users";
+  static const String baseUrl = "https://quick-griev-2.onrender.com/api/users";
 
   // ---------------- REGISTER ----------------
   static Future<Map<String, dynamic>> register({
